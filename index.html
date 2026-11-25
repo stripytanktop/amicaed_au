@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sentence Builder | AmicaEd</title>
+  <meta name="theme-color" content="#08366C" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ------------------------------------------------------------------
+       AmicaEd visual grammar (taken from the logo)
+       Navy  = structure: text, outlines, main actions, tiles you can move
+       Teal  = right / progress: ticks, correct words, completed typing
+       Gold  = attention: drop target, "try again", the full stop
+       ------------------------------------------------------------------ */
+    :root {
+      --navy: #08366C;
+      --navy-soft: #3E5878;
+      --navy-tint: #E8EFF8;
+      --navy-shadow: #B9C9DD;
+      --teal: #059FAA;
+      --teal-deep: #04727B;
+      --teal-tint: #DDF3F5;
+      --gold: #FBB525;
+      --gold-deep: #C27E00;
+      --gold-tint: #FFF1CC;
+      --paper: #F2F6FB;
+      --white: #FFFFFF;
+      --line: #C9D5E4;
+      --radius: 14px;
+      --radius-lg: 22px;
+
+      --tile-fs: 1.6rem;
+      --slot-w: 108px;
+      --slot-h: 68px;
+    }
+
+    body[data-level="prep"] { --tile-fs: 2.2rem;  --slot-w: 130px; --slot-h: 80px; }
+    body[data-level="y1"]   { --tile-fs: 2rem;    --slot-w: 118px; --slot-h: 74px; }
+    body[data-level="y2"]   { --tile-fs: 1.7rem;  --slot-w: 108px; --slot-h: 68px; }
+    body[data-level="y3"]   { --tile-fs: 1.5rem;  --slot-w: 96px;  --slot-h: 64px; }
+    body[data-level="y4"],
+    body[data-level="y5"],
+    body[data-level="y6"]   { --tile-fs: 1.35rem; --slot-w: 84px;  --slot-h: 60px; }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    [hidden] { display: none !important; }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      margin: 0;
+      font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.5;
+      color: var(--navy);
+      background: var(--paper);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .skip {
+      position: absolute; left: 12px; top: -60px; z-index: 20;
+      background: var(--navy); color: #fff; padding: 10px 16px; border-radius: var(--radius);
+    }
+    .skip:focus { top: 12px; }
+
+    :focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
+    .skip:focus-visible, .site-header :focus-visible { outline-color: var(--gold); }
+
+    button, .word-tile, .slot { user-select: none; -webkit-user-select: none; }
+
+    /* ---------- Header ---------- */
+    .site-header {
+      background: var(--white);
+      border-bottom: 1px solid var(--line);
+    }
+    .site-header-inner {
+      max-width: 960px; margin: 0 auto; padding: 12px 20px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .mark { display: block; width: 46px; height: 42px; flex: none; }
+    .mark svg { display: block; width: 100%; height: 100%; }
+    .app-name { font-size: 1.3rem; font-weight: 700; margin: 0; letter-spacing: 0.01em; }
+
+    /* ---------- Layout ---------- */
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 28px 20px 40px;
+    }
+
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 26px;
+    }
+    .panel + .panel { margin-top: 20px; }
+
+    h2 { font-size: 1.45rem; line-height: 1.2; margin: 0 0 6px; }
+    h3 { font-size: 1.1rem; line-height: 1.3; margin: 0 0 4px; }
+    p { margin: 0; }
+    .lede { max-width: 62ch; font-size: 1.15rem; color: var(--navy-soft); }
+    .sub { color: var(--navy-soft); margin-bottom: 18px; max-width: 62ch; }
+
+    /* ---------- Start view: hero ---------- */
+    .hero { padding: 8px 0 30px; }
+    .hero-line {
+      display: inline-flex; align-items: flex-end; flex-wrap: wrap; gap: 10px;
+      margin: 0 0 22px; padding-bottom: 14px;
+      border-bottom: 4px solid var(--teal);
+      font-size: clamp(2rem, 7vw, 3.4rem);
+      line-height: 1.1;
+    }
+    .hero-tile {
+      display: inline-block;
+      background: var(--white);
+      border: 3px solid var(--navy);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 0 var(--navy-shadow);
+      padding: 0.12em 0.5em 0.16em;
+      font-weight: 700;
+      animation: settle 0.5s cubic-bezier(.2,.8,.3,1) both;
+      animation-delay: calc(var(--i) * 120ms + 80ms);
+    }
+    .hero-stop {
+      width: 0.3em; height: 0.3em; border-radius: 50%;
+      background: var(--gold);
+      margin: 0 0 0.16em 0.04em;
+      animation: settle 0.5s cubic-bezier(.2,.8,.3,1) both;
+      animation-delay: 560ms;
+    }
+    @keyframes settle {
+      from { opacity: 0; transform: translateY(-18px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* ---------- Start view: level picker ---------- */
+    .levels {
+      list-style: none; margin: 0; padding: 0;
+      display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px;
+    }
+    .levels li { grid-column: span 3; display: flex; }
+    .levels li:nth-child(-n+3) { grid-column: span 4; }
+
+    .level-btn {
+      width: 100%;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+      text-align: left;
+      font: inherit; color: var(--navy);
+      background: var(--white);
+      border: 3px solid var(--navy);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 0 var(--navy-shadow);
+      padding: 14px 18px 16px;
+      min-height: 112px;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }
+    .level-btn:hover { box-shadow: 0 4px 0 var(--gold); transform: translateY(-2px); }
+    .level-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--navy-shadow); }
+    .level-name { font-size: 1.7rem; font-weight: 700; line-height: 1.15; }
+    .levels li:nth-child(-n+3) .level-name { font-size: 2rem; }
+    .level-focus { font-size: 0.98rem; color: var(--navy-soft); }
+    .level-range { font-size: 0.92rem; font-weight: 700; color: var(--teal-deep); margin-top: auto; padding-top: 6px; }
+
+    /* ---------- Start view: how it works ---------- */
+    .steps {
+      list-style: none; margin: 18px 0 0; padding: 0;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
+    }
+    .steps li { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: start; align-content: start; }
+    .step-num {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--navy); color: #fff;
+      display: grid; place-items: center;
+      font-weight: 700; font-size: 1.1rem;
+    }
+    .steps h3 { align-self: center; }
+    .steps p { grid-column: 1 / -1; color: var(--navy-soft); }
+
+    .notes {
+      margin-top: 24px; padding-top: 22px;
+      border-top: 1px solid var(--line);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 22px;
+    }
+    .notes p { color: var(--navy-soft); }
+
+    /* ---------- Builder view ---------- */
+    .builder { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 24px; }
+
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+    }
+    .top-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .level-chip {
+      margin: 0; font-size: 1.35rem; font-weight: 700;
+      padding: 6px 16px; border-radius: 999px;
+      background: var(--teal-tint); color: var(--navy);
+    }
+    .level-chip:focus { outline: none; }
+    .level-chip:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
+    .custom-flag {
+      font-size: 0.95rem; font-weight: 700; padding: 4px 12px; border-radius: 999px;
+      background: var(--gold-tint); color: var(--navy);
+    }
+    .controls-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    button {
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      border: none; border-radius: var(--radius);
+      padding: 12px 18px; min-height: 48px;
+      cursor: pointer; touch-action: manipulation;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: transform 0.1s ease, background-color 0.2s;
+    }
+    button:active { transform: scale(0.96); }
+    button svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .btn-secondary { background: var(--navy-tint); color: var(--navy); }
+    .btn-secondary:hover { background: #d8e3f2; }
+    .btn-primary { background: var(--navy); color: #fff; }
+    .btn-primary:hover { background: #0a4488; }
+    .btn-success { background: var(--teal-deep); color: #fff; }
+    .btn-success:hover { background: #035f67; }
+    .btn-audio { background: var(--navy-tint); color: var(--navy); }
+    .btn-audio.off { background: #f1f4f8; color: #6b7f99; }
+
+    /* Teacher panel */
+    #teacher-panel {
+      display: none;
+      background: var(--paper);
+      border: 2px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    #teacher-panel.open { display: block; }
+    #teacher-panel label { display: block; font-weight: 700; margin-bottom: 8px; }
+    textarea {
+      width: 100%; height: 130px;
+      border-radius: 12px; border: 2px solid var(--line);
+      padding: 12px; font-size: 1.05rem; font-family: inherit; color: var(--navy);
+      margin-bottom: 12px; resize: vertical;
+    }
+    textarea:focus { outline: 3px solid var(--navy); outline-offset: 2px; border-color: var(--navy); }
+    .teacher-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .teacher-status { margin-top: 12px; font-weight: 700; min-height: 1.5em; }
+    .teacher-status.warn { color: var(--gold-deep); }
+
+    .step-label {
+      font-size: 1.1rem; font-weight: 700; color: var(--navy-soft);
+      margin-bottom: 10px;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    }
+
+    .word-bank {
+      min-height: 90px;
+      background: var(--navy-tint);
+      border: 2px dashed #9fb4cf;
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      display: flex; flex-wrap: wrap; gap: 12px;
+      align-items: center; justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .slots-area {
+      min-height: 100px;
+      background: var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex; flex-wrap: wrap; gap: 12px;
+      align-items: center; justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    .slot {
+      min-width: var(--slot-w);
+      min-height: var(--slot-h);
+      border-bottom: 4px solid var(--teal);
+      background: var(--white);
+      border-radius: var(--radius);
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 4px;
+      transition: background-color 0.2s, border-color 0.2s, transform 0.15s;
+    }
+    .slot.highlight {
+      background: var(--gold-tint);
+      border-color: var(--gold);
+      transform: scale(1.05);
+    }
+
+    .word-tile {
+      background: var(--white);
+      border: 3px solid var(--navy);
+      color: var(--navy);
+      font-size: var(--tile-fs);
+      font-weight: 700;
+      line-height: 1.2;
+      padding: 8px 18px;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 0 var(--navy-shadow);
+      cursor: grab;
+      touch-action: none;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background-color 0.25s, border-color 0.25s;
+    }
+    .word-tile.dragging {
+      position: fixed !important;
+      z-index: 9999;
+      pointer-events: none;
+      transform: scale(1.08);
+      box-shadow: 0 12px 24px rgba(8, 54, 108, 0.25);
+      opacity: 0.95;
+      margin: 0 !important;
+    }
+    .word-tile.correct {
+      background: var(--teal-tint);
+      border-color: var(--teal);
+      box-shadow: 0 4px 0 #9fd9de;
+    }
+    .word-tile.correct::before {
+      content: "";
+      width: 0.75em; height: 0.75em; margin-right: 0.35em; flex: none;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2304727B' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center / contain no-repeat;
+    }
+    .word-tile.try-again {
+      background: var(--gold-tint);
+      border-color: var(--gold-deep);
+      box-shadow: 0 4px 0 var(--gold);
+      animation: gentleWiggle 0.4s ease;
+    }
+    @keyframes gentleWiggle {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+
+    .feedback-bar {
+      min-height: 54px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .feedback-msg {
+      font-size: 1.2rem; font-weight: 700;
+      padding: 10px 18px; border-radius: var(--radius);
+      display: none;
+    }
+    .feedback-msg.show { display: inline-block; }
+    .feedback-msg.info { background: var(--gold-tint); color: var(--navy); }
+    .feedback-msg.celebrate { background: var(--teal-tint); color: var(--navy); animation: popIn 0.35s ease; }
+    .feedback-msg.celebrate.show { display: inline-flex; align-items: center; gap: 10px; }
+    .feedback-msg.celebrate::before {
+      content: ""; width: 1.1em; height: 1.1em; flex: none;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2304727B' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7'/%3E%3C/svg%3E") center / contain no-repeat;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .typing-section {
+      display: none;
+      border-top: 2px solid var(--line);
+      padding-top: 20px; margin-top: 10px;
+      animation: popIn 0.35s ease;
+    }
+    .typing-section.unlocked { display: block; }
+    .typing-input-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .typing-input {
+      flex: 1; min-width: 240px;
+      height: auto; margin: 0; resize: none; line-height: 1.35;
+      font-size: 1.45rem; font-weight: 700;
+      padding: 14px 18px;
+      border: 3px solid var(--navy);
+      border-radius: var(--radius);
+      font-family: inherit; color: var(--navy);
+      background: var(--white);
+    }
+    .typing-input:focus { outline: 3px solid var(--navy); outline-offset: 3px; }
+    .typing-input.done { border-color: var(--teal); background: var(--teal-tint); }
+
+    /* Celebration: brand-colour dots (echoing the gold dot in the logo) */
+    .dot-burst {
+      position: fixed; pointer-events: none; z-index: 10000;
+      border-radius: 50%;
+      animation: floatUp 1.1s ease-out forwards;
+    }
+    @keyframes floatUp {
+      0% { transform: translateY(0) scale(0.6); opacity: 1; }
+      100% { transform: translateY(-130px) scale(1.2); opacity: 0; }
+    }
+
+    /* ---------- Footer ---------- */
+    .site-footer { background: var(--white); border-top: 1px solid var(--line); }
+    .site-footer-inner {
+      max-width: 960px; margin: 0 auto; padding: 18px 20px;
+      display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px;
+      color: var(--navy-soft); font-size: 0.95rem;
+    }
+    /* The wordmark's bottom edge sits on the text baseline; the lettering sits ~3.65px
+       above the swoosh, so nudge it down so the LETTERS share the text baseline. */
+    .wordmark { display: block; height: 26px; width: auto; position: relative; top: 3.65px; }
+    .footer-email { margin-left: auto; color: var(--navy); font-weight: 700; text-underline-offset: 3px; }
+    .footer-email:hover { color: var(--teal-deep); }
+
+    /* ---------- Small screens ---------- */
+    @media (max-width: 760px) {
+      .levels li, .levels li:nth-child(-n+3) { grid-column: span 6; }
+      .levels li:nth-child(7) { grid-column: span 12; }
+      .levels li:nth-child(-n+3) .level-name { font-size: 1.7rem; }
+      .steps, .notes { grid-template-columns: 1fr; }
+      .panel, .builder { padding: 18px; }
+      main { padding: 20px 14px 32px; }
+      .footer-email { margin-left: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hero-tile, .hero-stop, .typing-section, .feedback-msg.celebrate { animation: none; }
+      .level-btn, button, .slot { transition: none; }
+      .word-tile.try-again { animation: none; }
+    }
+  </style>
+</head>
+<body data-level="">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="site-header-inner">
+      <span class="mark"><svg role="img" aria-label="AmicaEd" focusable="false" viewBox="0 0 39.971008 36.663719" version="1.1" id="svg1" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg"> <defs id="defs1" /> <rect style="fill:#ffffff;stroke:#0b376b;stroke-width:0.283513;stroke-opacity:1" id="rect1" width="39.6875" height="36.380211" x="0.14175799" y="0.14175713" ry="7.4965277" /> <g id="layer1" transform="translate(-82.805111,-130.03325)"> <path fill="#079ea9" opacity="1" stroke="none" d="m 102.44825,151.65254 c 0.59086,-0.58275 1.17692,-1.17047 1.77333,-1.7475 4.85169,-4.69398 11.19827,-3.57161 14.07774,2.51512 0.48186,1.01861 0.79466,2.1172 1.06896,3.2732 -2.54814,-2.01685 -5.07255,-3.94916 -8.4597,-4.05985 -3.50172,-0.11446 -6.07332,1.71096 -8.35817,4.16978 -0.5114,-0.48006 -0.95796,-0.89922 -1.37444,-1.46049 0.44414,-0.99148 0.85821,-1.84086 1.27228,-2.69026 z" id="path142" style="stroke-width:0.264583" /> <path fill="#0b376b" opacity="1" stroke="none" d="m 102.40153,151.57394 c -0.36735,0.928 -0.78142,1.77738 -1.26548,2.68831 -0.46592,-0.21299 -0.86062,-0.4893 -1.257962,-0.76176 -3.51073,-2.40715 -7.322276,-2.44725 -10.863252,-0.0643 -1.08811,0.73227 -2.105368,1.56982 -3.137024,2.34558 -0.01583,-2.95974 2.463542,-6.88348 5.354371,-8.07855 3.349692,-1.38475 6.393749,-0.48091 9.113087,1.70066 0.74783,0.59993 1.34385,1.38909 2.05626,2.17002 z" id="path143" style="stroke-width:0.264583" /> <path fill="#0ca1ac" opacity="1" stroke="none" d="m 102.44782,159.08409 c 1.10439,-0.93219 2.14424,-1.957 3.32495,-2.77964 3.94837,-2.75101 9.95636,-2.03959 13.43551,1.68502 -0.96117,-0.20199 -1.72291,-0.38319 -2.49251,-0.52033 -4.53529,-0.8082 -8.6205,0.3014 -12.35127,2.91504 -0.60652,0.42489 -1.23054,0.8248 -1.89362,1.06186 -0.0391,-0.90359 -0.0311,-1.63276 -0.023,-2.36195 z" id="path144" style="stroke-width:0.264583" /> <path fill="#0c396d" opacity="1" stroke="none" d="m 102.38164,159.01961 c 0.0581,0.79367 0.0501,1.52284 0.0266,2.37553 -1.31526,-0.69396 -2.568612,-1.59972 -3.923696,-2.31192 -3.701086,-1.94523 -7.586076,-2.42005 -11.630816,-1.20298 -0.319276,0.0961 -0.645264,0.16984 -1.079889,0.28309 3.949103,-4.37686 11.562501,-5.11186 16.607791,0.85628 z" id="path145" style="stroke-width:0.264583" /> <path fill="#fbb529" opacity="1" stroke="none" d="m 103.34098,142.38458 c -2.21465,0.10413 -3.478175,-0.61361 -3.986087,-2.1841 -0.479822,-1.48365 0.129341,-3.2655 1.412147,-4.0573 1.19703,-0.73883 2.41711,-0.69752 3.60376,0.0154 1.23166,0.73995 1.63512,1.89754 1.49285,3.26731 -0.15562,1.49831 -0.93174,2.51577 -2.52267,2.95873 z" id="path146" style="stroke-width:0.264583" /> <path fill="#0b376b" opacity="1" stroke="none" d="m 96.69754,141.22096 c 1.532955,2.42775 0.601673,5.03236 -1.83443,5.39374 -1.529925,0.22696 -2.903499,-0.47675 -3.482017,-1.78387 -0.630321,-1.42419 -0.196657,-3.11622 1.030755,-4.02164 1.255986,-0.92648 2.770766,-0.80544 4.285692,0.41177 z" id="path147" style="stroke-width:0.264583" /> <path fill="#079ea9" opacity="1" stroke="none" d="m 107.65217,143.21323 c 0.3738,-2.16607 1.64334,-3.19916 3.55757,-2.9999 1.75663,0.18285 2.99269,1.69093 2.86824,3.49945 -0.11506,1.67205 -1.46597,2.93335 -3.14865,2.93976 -1.96365,0.007 -3.15391,-1.19738 -3.27716,-3.43931 z" id="path148" style="stroke-width:0.264583" /> </g> </svg></span>
+      <p class="app-name">Sentence Builder</p>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ===================== START VIEW ===================== -->
+    <div id="start-view">
+      <section class="hero">
+        <h1 class="hero-line" aria-label="Build the sentence.">
+          <span class="hero-tile" style="--i:0" aria-hidden="true">Build</span>
+          <span class="hero-tile" style="--i:1" aria-hidden="true">the</span>
+          <span class="hero-tile" style="--i:2" aria-hidden="true">sentence</span>
+          <span class="hero-stop" aria-hidden="true"></span>
+        </h1>
+        <p class="lede">Sentence Builder helps students practise putting a sentence together. They arrange scrambled words into the right order, hear the sentence read aloud, then type it out with the correct capital letters and punctuation.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="levels-heading">
+        <h2 id="levels-heading">Choose a level</h2>
+        <p class="sub">Each level has its own set of sentences. You can come back and change level at any time.</p>
+        <ul class="levels" id="levels"></ul>
+      </section>
+
+      <section class="panel" aria-labelledby="how-heading">
+        <h2 id="how-heading">How it works</h2>
+        <ol class="steps">
+          <li>
+            <span class="step-num" aria-hidden="true">1</span>
+            <h3>Put the words in order</h3>
+            <p>Drag each word onto a line, or tap a word and it jumps to the next free line. Tap a word to hear it.</p>
+          </li>
+          <li>
+            <span class="step-num" aria-hidden="true">2</span>
+            <h3>Check your sentence</h3>
+            <p>Ticked words are in the right place. Yellow words go back to the word bank for another try.</p>
+          </li>
+          <li>
+            <span class="step-num" aria-hidden="true">3</span>
+            <h3>Type it out</h3>
+            <p>When the sentence is right, a typing box opens. Type the sentence yourself, then check your typing.</p>
+          </li>
+        </ol>
+        <div class="notes">
+          <div>
+            <h3>Listening</h3>
+            <p>Words and sentences are read aloud using your device&rsquo;s voice. Use the Audio button to turn the sound off.</p>
+          </div>
+          <div>
+            <h3>For teachers</h3>
+            <p>Open Teacher setup inside any level to swap in your own sentences, one per line. They stay until you reset or refresh the page. Nothing is saved or sent anywhere.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===================== BUILDER VIEW ===================== -->
+    <div id="builder-view" class="builder" hidden>
+      <div class="top-bar">
+        <div class="top-left">
+          <button class="btn-secondary" id="back-btn" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            Levels
+          </button>
+          <h2 class="level-chip" id="level-title" tabindex="-1"></h2>
+          <span class="custom-flag" id="custom-flag" hidden>Your sentences</span>
+        </div>
+        <div class="controls-group">
+          <button id="audio-toggle" class="btn-audio" type="button" aria-pressed="true"></button>
+          <button class="btn-secondary" id="new-btn" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+            New sentence
+          </button>
+          <button class="btn-secondary" id="teacher-btn" type="button" aria-expanded="false" aria-controls="teacher-panel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+            Teacher setup
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible teacher setup -->
+      <div id="teacher-panel">
+        <label for="sentence-list">Enter custom sentences (one sentence per line):</label>
+        <textarea id="sentence-list" placeholder="Type or paste your sentences here..."></textarea>
+        <div class="teacher-actions">
+          <button class="btn-primary" id="use-custom-btn" type="button">Use my sentences</button>
+          <button class="btn-secondary" id="reset-btn" type="button"></button>
+          <button class="btn-secondary" id="close-teacher-btn" type="button">Close</button>
+        </div>
+        <div class="teacher-status" id="teacher-status" role="status" aria-live="polite"></div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="step-label">
+        <span>1. Drag (or tap) the words onto the lines in order:</span>
+        <button id="hear-sentence-btn" class="btn-audio" type="button" style="display:none;">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/></svg>
+          Listen
+        </button>
+      </div>
+
+      <div id="word-bank" class="word-bank" role="group" aria-label="Word bank"></div>
+      <div id="slots-area" class="slots-area" role="group" aria-label="Your sentence, in order"></div>
+
+      <div class="feedback-bar">
+        <div id="feedback-msg" class="feedback-msg" role="status" aria-live="polite"></div>
+        <div style="margin-left: auto; display: flex; gap: 10px;">
+          <button id="check-order-btn" class="btn-primary" type="button">Check sentence</button>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div id="typing-section" class="typing-section">
+        <div class="step-label">
+          <span>2. Great job! Now type the sentence yourself below:</span>
+        </div>
+        <div class="typing-input-row">
+          <textarea
+            id="typing-input"
+            class="typing-input"
+            rows="2"
+            placeholder="Tap here to type the sentence..."
+            aria-label="Type the sentence"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="sentences"
+            spellcheck="false"
+          ></textarea>
+          <button class="btn-success" id="check-typing-btn" type="button">Check typing</button>
+        </div>
+        <div id="typing-feedback" class="feedback-msg" style="margin-top: 12px;" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <svg class="wordmark" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="151 85.5 1243 274" role="img" aria-label="AmicaEd" ><path fill="#08366C" d="M848.3,320.3 C840.2,319.0 836.1,314.4 836.1,306.7 C836.0,290.8 836.1,275.0 836.1,259.2 C836.1,257.9 836.1,256.5 836.1,255.2 C835.7,244.0 829.1,236.7 819.3,236.6 C808.5,236.5 801.1,243.8 800.8,255.2 C800.5,262.4 800.7,269.5 800.7,276.7 C800.7,286.0 800.7,295.4 800.7,304.7 C800.7,316.1 796.5,320.2 785.0,320.2 C774.7,320.2 770.5,315.7 770.5,304.4 C770.5,289.3 770.6,274.1 770.6,259.0 C770.6,256.6 770.4,254.3 770.1,252.0 C768.6,242.6 762.0,236.7 752.8,236.4 C743.8,236.2 735.8,242.3 734.0,251.1 C733.4,253.7 733.2,256.4 733.2,259.1 C733.1,274.7 733.2,290.4 733.2,306.1 C733.2,315.2 728.2,320.1 719.0,320.2 C706.2,320.4 702.2,316.5 702.1,303.7 C702.1,277.3 702.1,250.8 702.1,224.3 C702.1,214.9 706.9,210.4 716.3,210.0 C724.0,209.7 730.6,211.0 733.1,219.8 C748.1,203.4 779.3,203.1 793.6,222.9 C794.1,222.5 794.7,222.3 795.0,221.8 C807.1,208.2 822.3,205.2 839.1,209.5 C855.7,213.7 866.3,227.0 866.8,244.5 C867.3,265.8 867.1,287.1 867.0,308.4 C867.0,315.3 862.1,319.8 855.2,320.2 C853.1,320.3 850.9,320.2 848.3,320.3 z"/><path fill="#059FAA" d="M1241.9,320.4 C1221.3,320.4 1201.1,320.5 1181.0,320.5 C1169.6,320.4 1165.2,316.0 1165.2,304.8 C1165.1,265.1 1165.1,225.5 1165.1,185.8 C1165.1,175.5 1169.7,170.6 1179.9,170.6 C1204.7,170.4 1229.6,170.6 1254.4,170.4 C1266.4,170.4 1271.5,180.7 1268.3,191.4 C1266.6,197.1 1262.0,200.0 1255.7,200.0 C1238.3,200.1 1221.0,200.1 1203.7,200.1 C1202.0,200.1 1200.4,200.1 1198.3,200.1 C1198.3,210.1 1198.3,219.8 1198.3,230.2 C1200.2,230.2 1202.2,230.2 1204.1,230.2 C1219.1,230.2 1234.1,230.2 1249.1,230.2 C1258.6,230.2 1263.9,235.7 1263.9,245.7 C1263.9,254.4 1258.6,259.6 1249.3,259.7 C1234.3,259.8 1219.3,259.7 1204.3,259.7 C1202.4,259.7 1200.4,259.7 1198.2,259.7 C1198.2,270.0 1198.2,279.8 1198.2,290.3 C1200.2,290.3 1202.1,290.3 1204.0,290.3 C1220.8,290.3 1237.6,290.2 1254.5,290.3 C1265.7,290.3 1271.9,298.0 1269.8,309.1 C1268.7,315.1 1264.1,319.6 1257.9,320.1 C1252.8,320.5 1247.6,320.3 1241.9,320.4 z"/><path fill="#08366C" d="M675.4,263.5 C680.8,276.4 686.2,288.9 691.3,301.5 C695.8,312.4 690.5,320.0 678.8,320.2 C665.2,320.3 663.6,319.4 658.3,306.7 C656.1,301.5 653.9,296.3 651.9,291.0 C651.0,288.5 649.8,287.4 646.9,287.4 C629.7,287.6 612.6,287.6 595.4,287.5 C592.5,287.5 591.3,288.6 590.4,291.1 C587.9,297.6 585.0,304.0 582.4,310.5 C579.8,317.0 575.1,319.8 567.9,320.4 C550.8,321.7 546.5,310.7 552.4,297.4 C569.4,259.7 585.0,221.3 601.1,183.2 C604.3,175.6 609.8,171.6 618.0,171.4 C620.3,171.4 622.7,171.4 625.0,171.5 C632.7,171.9 638.1,175.6 641.2,182.8 C652.5,209.6 663.8,236.4 675.4,263.5 M624.6,222.9 C623.6,220.4 622.5,217.9 621.0,214.4 C614.7,229.8 608.9,244.3 602.9,259.1 C615.3,259.1 626.9,259.1 639.0,259.1 C634.2,247.0 629.6,235.3 624.6,222.9 z"/><path fill="#039FAA" d="M1392.0,314.0 C1391.2,315.5 1390.8,317.2 1389.7,318.3 C1384.1,323.8 1376.9,322.4 1370.3,321.5 C1365.0,320.7 1362.4,316.4 1361.6,310.9 C1360.9,311.2 1360.2,311.4 1359.8,311.8 C1338.7,331.1 1300.0,325.8 1282.5,297.0 C1266.4,270.4 1272.8,234.7 1297.2,216.2 C1315.9,202.0 1340.7,201.9 1359.4,216.0 C1359.7,216.3 1360.2,216.4 1361.3,217.1 C1361.3,210.0 1361.3,203.4 1361.3,196.8 C1361.3,190.0 1361.1,183.2 1361.4,176.3 C1361.6,169.1 1366.4,164.1 1373.4,163.2 C1383.6,161.9 1389.6,164.7 1392.0,172.5 C1391.9,173.0 1391.8,173.1 1391.4,173.1 C1390.3,174.6 1389.0,176.1 1389.0,177.6 C1388.7,221.4 1388.5,265.1 1388.4,308.8 C1388.4,310.2 1390.6,311.5 1391.8,313.2 C1391.9,313.6 1391.9,313.8 1392.0,314.0 M1344.7,291.4 C1354.7,287.0 1360.0,279.1 1361.6,268.4 C1363.8,253.5 1353.9,238.6 1340.0,235.9 C1324.0,232.9 1309.9,241.6 1306.5,257.3 C1304.0,268.2 1306.4,278.3 1314.7,286.1 C1323.1,294.1 1333.2,295.0 1344.7,291.4 z"/><path fill="#08366C" d="M1149.0,223.2 C1149.0,251.3 1149.0,279.0 1149.0,306.6 C1149.0,315.7 1144.5,320.3 1135.2,320.5 C1134.2,320.5 1133.2,320.5 1132.2,320.5 C1123.2,320.6 1120.7,318.8 1117.9,309.9 C1105.5,321.2 1091.0,324.0 1075.3,320.9 C1062.7,318.4 1052.6,311.7 1044.7,301.7 C1027.1,279.4 1028.6,244.7 1047.6,223.9 C1063.4,206.7 1094.7,199.5 1117.6,218.3 C1122.8,209.1 1128.8,206.6 1139.5,209.1 C1145.2,210.5 1148.7,215.5 1149.0,223.2 M1110.9,284.4 C1124.2,268.0 1118.0,243.0 1099.2,237.0 C1086.6,233.0 1073.1,238.5 1066.9,250.3 C1060.3,263.0 1063.6,279.6 1074.5,287.8 C1085.5,296.1 1099.9,294.9 1110.9,284.4 z"/><path fill="#039EAA" d="M337.2,253.1 C338.6,251.9 340.1,251.0 341.1,249.7 C356.4,230.8 374.8,216.1 398.1,208.2 C438.7,194.3 480.5,209.4 503.0,246.0 C513.0,262.2 519.6,279.6 523.5,298.1 C523.8,299.6 523.8,301.0 524.1,303.2 C517.8,297.4 512.3,292.0 506.4,286.9 C489.9,272.8 471.7,261.7 450.5,256.1 C424.5,249.4 400.0,253.9 376.8,266.7 C362.3,274.8 349.9,285.7 338.3,298.0 C332.5,292.8 326.9,287.7 321.4,282.1 C326.1,273.6 330.9,265.6 335.5,257.6 C336.3,256.2 336.7,254.6 337.2,253.1 z"/><path fill="#07356B" d="M337.1,252.7 C336.7,254.6 336.3,256.2 335.5,257.6 C330.9,265.6 326.1,273.6 321.2,281.8 C310.4,275.5 300.3,267.9 289.1,262.6 C259.4,248.4 229.8,250.6 201.1,266.4 C185.8,274.9 172.5,285.8 160.2,298.2 C157.7,300.7 155.2,303.4 151.7,307.0 C153.5,292.5 157.0,280.1 161.9,268.2 C169.9,248.4 180.4,230.1 198.5,218.1 C229.8,197.3 262.4,198.6 295.0,215.4 C311.9,224.2 325.6,237.1 337.1,252.7 z"/><path fill="#08366C" d="M976.7,292.7 C987.6,294.8 996.8,292.3 1005.4,286.0 C1011.6,281.5 1019.0,283.4 1024.5,290.5 C1029.4,296.5 1029.0,303.0 1023.2,308.2 C1003.1,326.4 961.7,329.1 938.3,303.9 C917.3,281.1 918.9,243.5 941.9,222.4 C963.0,203.1 999.7,201.9 1021.7,219.9 C1028.1,225.2 1029.0,231.8 1024.0,238.3 C1018.2,246.1 1011.4,247.6 1004.3,242.8 C990.8,233.5 975.6,233.2 965.1,242.5 C956.8,249.9 953.7,259.4 955.8,270.4 C958.0,282.0 965.3,289.1 976.7,292.7 z"/><path fill="#049FAA" d="M337.9,333.1 C351.0,319.9 364.8,307.3 381.9,299.2 C429.1,276.5 473.2,283.6 514.7,313.7 C517.9,316.1 520.8,318.7 525.0,322.1 C515.6,320.1 507.7,318.2 499.7,316.8 C456.0,309.3 414.6,317.2 375.6,337.6 C364.0,343.7 353.1,351.2 341.9,358.1 C340.8,358.7 339.6,359.3 338.1,359.3 C337.8,350.3 337.8,341.7 337.9,333.1 z"/><path fill="#08366C" d="M337.6,333.0 C337.8,341.7 337.8,350.3 337.8,359.3 C327.9,353.8 318.3,347.6 308.4,342.0 C261.8,315.4 212.3,309.4 160.4,321.6 C157.8,322.2 155.2,322.8 151.3,323.6 C165.7,310.5 180.7,301.0 197.7,295.1 C241.9,279.7 282.2,287.4 318.7,316.2 C325.2,321.3 331.1,327.2 337.6,333.0 z"/><path fill="#FBB525" d="M313.0,146.9 C302.3,135.3 299.6,119.6 305.8,106.4 C312.1,93.0 325.1,85.2 340.5,85.8 C354.7,86.3 367.7,96.0 372.9,110.0 C378.4,124.7 372.8,141.4 359.0,151.3 C346.6,160.2 328.2,159.7 316.6,150.1 C315.4,149.2 314.4,148.2 313.0,146.9 z"/><path fill="#039FAA" d="M398.7,144.7 C408.4,132.4 421.0,128.0 435.7,131.3 C449.5,134.3 458.7,143.0 462.3,156.9 C467.1,175.5 454.8,194.9 435.8,199.0 C415.9,203.4 396.3,190.8 392.8,171.6 C391.0,161.9 392.9,153.1 398.7,144.7 z"/><path fill="#07356B" d="M213.7,158.8 C217.7,140.7 233.5,128.8 250.8,130.2 C269.2,131.8 282.6,145.5 283.7,163.7 C285.2,189.0 256.2,207.8 233.2,196.5 C218.4,189.2 211.0,175.1 213.7,158.8 z"/><path fill="#08366C" d="M880.8,224.2 C881.2,213.3 885.6,209.8 898.2,210.0 C907.0,210.1 911.8,215.0 911.8,224.2 C911.9,251.7 911.9,279.2 911.9,306.6 C911.9,315.4 907.0,320.2 898.3,320.2 C897.1,320.2 895.9,320.2 894.8,320.2 C885.5,320.1 880.9,315.7 880.9,306.5 C880.8,283.6 880.8,260.6 880.8,237.6 C880.8,233.3 880.8,229.0 880.8,224.2 z"/><path fill="#0C396D" d="M908.9,169.9 C916.5,178.1 916.9,188.7 910.2,195.7 C903.7,202.6 891.6,203.6 884.3,197.8 C876.8,191.9 875.2,181.1 880.6,173.2 C886.7,164.0 898.7,162.6 908.9,169.9 z"/><path fill="#0CA1AC" d="M1392.2,313.7 C1391.9,313.8 1391.9,313.6 1391.9,312.7 C1391.9,265.7 1391.8,219.4 1391.8,173.1 C1391.8,173.1 1391.9,173.0 1392.0,172.9 C1392.4,174.3 1392.9,175.7 1392.9,177.1 C1393.0,221.2 1393.0,265.3 1392.9,309.4 C1392.9,310.7 1392.6,312.0 1392.2,313.7 z"/><path fill="#F9FAFB" d="M624.8,223.2 C629.6,235.3 634.2,247.0 639.0,259.1 C626.9,259.1 615.3,259.1 602.9,259.1 C608.9,244.3 614.7,229.8 621.0,214.4 C622.5,217.9 623.6,220.4 624.8,223.2 z"/><path fill="#FBFCFC" d="M1344.3,291.6 C1333.2,295.0 1323.1,294.1 1314.7,286.1 C1306.4,278.3 1304.0,268.2 1306.5,257.3 C1309.9,241.6 1324.0,232.9 1340.0,235.9 C1353.9,238.6 1363.8,253.5 1361.6,268.4 C1360.0,279.1 1354.7,287.0 1344.3,291.6 z"/><path fill="#0897A0" d="M1391.4,173.1 C1391.8,219.4 1391.9,265.7 1391.9,312.5 C1390.6,311.5 1388.4,310.2 1388.4,308.8 C1388.5,265.1 1388.7,221.4 1389.0,177.6 C1389.0,176.1 1390.3,174.6 1391.4,173.1 z"/><path fill="#FBFCFC" d="M1110.6,284.6 C1099.9,294.9 1085.5,296.1 1074.5,287.8 C1063.6,279.6 1060.3,263.0 1066.9,250.3 C1073.1,238.5 1086.6,233.0 1099.2,237.0 C1118.0,243.0 1124.2,268.0 1110.6,284.6 z"/></svg>
+      <span>&copy; 2026 AmicaEd. All rights reserved.</span>
+      <a class="footer-email" href="mailto:support@amicaed.com.au">support@amicaed.com.au</a>
+    </div>
+  </footer>
+
+  <script>
+    // ------------------------------------------------------------------
+    // Sentence banks, Levels 1-7 (roughly Prep to Year 6; Australian English)
+    // Words are split on spaces, so punctuation stays attached to its word.
+    // ------------------------------------------------------------------
+    const LEVELS = [
+      {
+        id: "prep", name: "Level 1", focus: "Short, familiar words",
+        sentences: [
+          `I can see a dog.`,
+          `The cat is big.`,
+          `We like to play.`,
+          `My mum is at home.`,
+          `Look at the red car.`,
+          `I am a good friend.`,
+          `The sun is hot.`,
+          `Can you see me?`,
+          `A frog can jump.`,
+          `We go to school.`,
+          `The pig is pink.`,
+          `I like my new hat.`,
+          `Dad has a big bag.`,
+          `The bus is red.`,
+          `Go and get the ball.`
+        ]
+      },
+      {
+        id: "y1", name: "Level 2", focus: "Simple everyday sentences",
+        sentences: [
+          `The little dog ran to the gate.`,
+          `We played on the swings at lunch.`,
+          `My sister has a pet rabbit.`,
+          `I can hear the rain on the roof.`,
+          `The farmer fed the hungry sheep.`,
+          `A big green frog sat on a log.`,
+          `We had pizza for dinner last night.`,
+          `Mum took us to the library.`,
+          `The baby bird sat in the nest.`,
+          `I like to ride my scooter.`,
+          `Can we go to the beach today?`,
+          `The teacher read us a funny story.`,
+          `A cold wind blew through the trees.`,
+          `Our class has a new fish.`,
+          `We saw a koala at the zoo.`
+        ]
+      },
+      {
+        id: "y2", name: "Level 3", focus: "Describing words and places",
+        sentences: [
+          `The little brown dog ran fast.`,
+          `We like to play at the beach.`,
+          `My friend has a bright red bike.`,
+          `The kangaroo jumped over the log.`,
+          `She put her blue hat on.`,
+          `Two green frogs sat by the pond.`,
+          `We read a funny book today.`,
+          `The yellow bus stopped at school.`,
+          `I can see five birds in the tree.`,
+          `He ate a sweet apple for lunch.`,
+          `The koala is sleeping in the gum tree.`,
+          `We went to the park after school.`,
+          `Look at the big white clouds.`,
+          `My cat likes to sleep on my bed.`,
+          `They swam in the cool blue pool.`
+        ]
+      },
+      {
+        id: "y3", name: "Level 4", focus: "Joining words and time words",
+        sentences: [
+          `The tired puppy curled up because it was cold.`,
+          `After lunch, we practised our reading in the shade.`,
+          `Mia wanted to swim, but the water was freezing.`,
+          `A pelican glided slowly across the glittering river.`,
+          `We planted tomato seeds in the garden beds today.`,
+          `Please pack your lunch box before the bell rings.`,
+          `The magpie swooped down and landed on the fence.`,
+          `Our class is collecting rubbish to keep the beach clean.`,
+          `Although it was raining, we still played handball.`,
+          `Tom's brother taught him how to skateboard.`,
+          `Early in the morning, the kookaburras began to laugh.`,
+          `I will finish my project before the end of term.`,
+          `The scientist carefully measured the rainfall each afternoon.`,
+          `Can you help me carry these books to the library?`,
+          `Jack hurried home because storm clouds were gathering.`
+        ]
+      },
+      {
+        id: "y4", name: "Level 5", focus: "Commas, apostrophes and speech",
+        sentences: [
+          `When the siren sounded, everyone walked quietly to the oval.`,
+          `The old lighthouse stood proudly at the edge of the cliff.`,
+          `"Please take a seat," said the teacher kindly.`,
+          `Yesterday, my grandmother showed me her collection of shells.`,
+          `The explorers trudged through the thick, tangled rainforest.`,
+          `Whenever it rains, the creek behind our school overflows.`,
+          `We couldn't believe how quickly the tide came in.`,
+          `The wombat's burrow was hidden beneath a fallen log.`,
+          `Despite the heat, the netball team trained after school.`,
+          `Our principal announced that the excursion had been postponed.`,
+          `Frogs croak loudly at night after a summer storm.`,
+          `I've been saving my pocket money for a new bike.`,
+          `The giant waves crashed against the rocks, sending spray high into the air.`,
+          `Before the storm arrived, the farmers moved their cattle to higher ground.`,
+          `"Where did you leave your hat?" asked Dad.`
+        ]
+      },
+      {
+        id: "y5", name: "Level 6", focus: "Longer sentences with extra detail",
+        sentences: [
+          `As the sun set behind the mountains, the sky glowed a deep orange.`,
+          `The students who finished early helped their classmates revise for the test.`,
+          `Although the experiment failed, we learned something valuable from the results.`,
+          `Scientists believe that the Great Barrier Reef is the largest living structure on Earth.`,
+          `Gripping the rope tightly, Lena climbed to the top of the wall.`,
+          `The recycling program, which started last year, has reduced our school's waste.`,
+          `"We must leave now," whispered Zara, "before the tide comes in."`,
+          `Without warning, a thunderstorm rolled in and drenched the unsuspecting spectators.`,
+          `Our debate team practised every lunchtime until they felt confident.`,
+          `The ancient manuscript, crumbling at the edges, had been hidden for centuries.`,
+          `If we protect their habitat, koalas will have a better chance of surviving.`,
+          `Nervously, Ben stepped onto the stage and faced the enormous audience.`,
+          `The bushfire smoke drifted across the valley, turning the afternoon sky grey.`,
+          `Because the river had flooded, the bus took a longer route to school.`,
+          `Meteors blazed across the night sky while we lay silently on the grass.`
+        ]
+      },
+      {
+        id: "y6", name: "Level 7", focus: "Complex sentences and punctuation",
+        sentences: [
+          `Having completed the research, the group presented their findings to the entire school.`,
+          `The explorer, exhausted but determined, pressed on toward the distant summit.`,
+          `Not only did the team win the final, but they also broke the school record.`,
+          `Climate change is one of the most pressing challenges facing our generation.`,
+          `Whenever we visit the wetlands, hundreds of migratory birds can be spotted along the shoreline.`,
+          `Although the journey was long and difficult, the pioneers refused to give up.`,
+          `The council's decision to build a skate park was welcomed by local families.`,
+          `Through persistence and teamwork, our class raised enough money for the wildlife shelter.`,
+          `"I can't promise anything," she replied, "but I will certainly try."`,
+          `The artist's latest sculpture, made entirely from recycled materials, attracted enormous attention.`,
+          `If you read the instructions carefully, you will avoid making unnecessary mistakes.`,
+          `By the time the ambulance arrived, the volunteers had already secured the area.`,
+          `Technology has transformed the way that students collaborate on their assignments.`,
+          `Beneath the shimmering surface of the lagoon, an extraordinary world was waiting to be discovered.`,
+          `Despite months of preparation, nothing could have prepared them for the spectacular opening night.`
+        ]
+      }
+    ];
+
+    // ------------------------------------------------------------------
+    // State
+    // ------------------------------------------------------------------
+    let currentLevel = null;
+    let sentencePool = [];
+    const customByLevel = {};   // teacher sentences, kept in memory for this visit only
+    let currentIndex = -1;
+    let targetWords = [];
+    let audioEnabled = true;
+    let step1Complete = false;
+    let activeDrag = null;      // global drag state (ensures no tile ever gets stuck mid-screen)
+
+    const $ = id => document.getElementById(id);
+
+    const ICON_ON  = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/></svg>';
+    const ICON_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+
+    window.addEventListener("DOMContentLoaded", () => {
+      renderLevelPicker();
+      renderAudioButton();
+
+      $("back-btn").addEventListener("click", goToStart);
+      $("audio-toggle").addEventListener("click", toggleAudio);
+      $("new-btn").addEventListener("click", nextRandomSentence);
+      $("teacher-btn").addEventListener("click", toggleTeacherPanel);
+      $("close-teacher-btn").addEventListener("click", toggleTeacherPanel);
+      $("use-custom-btn").addEventListener("click", saveCustomSentences);
+      $("reset-btn").addEventListener("click", loadDefaultSentences);
+      $("hear-sentence-btn").addEventListener("click", speakFullSentence);
+      $("check-order-btn").addEventListener("click", checkWordOrder);
+      $("check-typing-btn").addEventListener("click", checkTypedSentence);
+      $("typing-input").addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); checkTypedSentence(); }
+      });
+    });
+
+    // ------------------------------------------------------------------
+    // Start page: level picker
+    // ------------------------------------------------------------------
+    function renderLevelPicker() {
+      const list = $("levels");
+      LEVELS.forEach(level => {
+        const counts = level.sentences.map(s => s.trim().split(/\s+/).length);
+        const min = Math.min(...counts), max = Math.max(...counts);
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "level-btn";
+        btn.dataset.level = level.id;
+        btn.innerHTML =
+          '<span class="level-name"></span>' +
+          '<span class="level-focus"></span>' +
+          '<span class="level-range"></span>';
+        btn.querySelector(".level-name").textContent = level.name;
+        btn.querySelector(".level-focus").textContent = level.focus;
+        btn.querySelector(".level-range").textContent = min + "\u2013" + max + " words";
+        btn.addEventListener("click", () => selectLevel(level.id));
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    }
+
+    function selectLevel(id) {
+      currentLevel = LEVELS.find(l => l.id === id);
+      document.body.dataset.level = id;
+
+      const custom = customByLevel[id];
+      sentencePool = custom ? [...custom] : [...currentLevel.sentences];
+      currentIndex = -1;
+
+      $("level-title").textContent = currentLevel.name;
+      $("reset-btn").textContent = "Reset to " + currentLevel.name + " sentences";
+      $("sentence-list").value = sentencePool.join("\n");
+      $("custom-flag").hidden = !custom;
+      $("teacher-status").textContent = "";
+      $("teacher-status").className = "teacher-status";
+      closeTeacherPanel();
+
+      $("start-view").hidden = true;
+      $("builder-view").hidden = false;
+      window.scrollTo(0, 0);
+      nextRandomSentence();
+      $("level-title").focus({ preventScroll: true });
+    }
+
+    function goToStart() {
+      if (activeDrag) finalizeDrag(null);
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      $("builder-view").hidden = true;
+      $("start-view").hidden = false;
+      document.body.dataset.level = "";
+      window.scrollTo(0, 0);
+      const last = document.querySelector('.level-btn[data-level="' + currentLevel.id + '"]');
+      if (last) last.focus({ preventScroll: true });
+    }
+
+    // ------------------------------------------------------------------
+    // Teacher setup
+    // ------------------------------------------------------------------
+    function closeTeacherPanel() {
+      $("teacher-panel").classList.remove("open");
+      $("teacher-btn").setAttribute("aria-expanded", "false");
+    }
+
+    function toggleTeacherPanel() {
+      const open = $("teacher-panel").classList.toggle("open");
+      $("teacher-btn").setAttribute("aria-expanded", String(open));
+      if (open) $("sentence-list").focus({ preventScroll: true });
+    }
+
+    function setTeacherStatus(msg, warn) {
+      const el = $("teacher-status");
+      el.textContent = msg;
+      el.className = "teacher-status" + (warn ? " warn" : "");
+    }
+
+    function saveCustomSentences() {
+      const lines = $("sentence-list").value
+        .split("\n")
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+      if (lines.length === 0) {
+        setTeacherStatus("Type at least one sentence first.", true);
+        return;
+      }
+      customByLevel[currentLevel.id] = lines;
+      sentencePool = [...lines];
+      currentIndex = -1;
+      $("custom-flag").hidden = false;
+      setTeacherStatus("", false);
+      closeTeacherPanel();
+      nextRandomSentence();
+    }
+
+    function loadDefaultSentences() {
+      delete customByLevel[currentLevel.id];
+      sentencePool = [...currentLevel.sentences];
+      $("sentence-list").value = sentencePool.join("\n");
+      $("custom-flag").hidden = true;
+      currentIndex = -1;
+      setTeacherStatus("Back to the " + currentLevel.name + " sentences.", false);
+      nextRandomSentence();
+    }
+
+    // ------------------------------------------------------------------
+    // Audio
+    // ------------------------------------------------------------------
+    function renderAudioButton() {
+      const btn = $("audio-toggle");
+      btn.innerHTML = (audioEnabled ? ICON_ON : ICON_OFF) + (audioEnabled ? "Audio: on" : "Audio: off");
+      btn.classList.toggle("off", !audioEnabled);
+      btn.setAttribute("aria-pressed", String(audioEnabled));
+    }
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      renderAudioButton();
+      if (!audioEnabled && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    }
+
+    // Web pages can't read the iPad's Spoken Content voice setting. Instead we choose
+    // the best installed English voice: Australian first, then higher-quality
+    // (Premium / Enhanced) ones, skipping novelty voices.
+    let cachedVoices = [];
+    function loadVoices() {
+      cachedVoices = ("speechSynthesis" in window) ? (window.speechSynthesis.getVoices() || []) : [];
+    }
+    if ("speechSynthesis" in window) {
+      loadVoices();
+      if (window.speechSynthesis.addEventListener) {
+        window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+      }
+    }
+
+    function pickVoice() {
+      if (!cachedVoices.length) loadVoices();
+      const english = cachedVoices.filter(v => v.lang && v.lang.replace("_", "-").toLowerCase().startsWith("en"));
+      if (!english.length) return null;
+      const novelty = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy/;
+      const score = v => {
+        const lang = v.lang.replace("_", "-").toLowerCase();
+        const name = v.name.toLowerCase();
+        let s = 0;
+        if (lang === "en-au") s += 100;
+        else if (lang === "en-nz" || lang === "en-gb") s += 40;
+        if (/premium/.test(name)) s += 30;
+        else if (/enhanced/.test(name)) s += 20;
+        if (/google|natural|neural|online/.test(name)) s += 15;
+        if (/compact/.test(name)) s -= 5;
+        if (novelty.test(name)) s -= 100;
+        return s;
+      };
+      return english.slice().sort((a, b) => score(b) - score(a))[0];
+    }
+
+    function speakText(text) {
+      if (!audioEnabled || !("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      const voice = pickVoice();
+      if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function speakFullSentence() {
+      speakText(targetWords.join(" "));
+    }
+
+    // ------------------------------------------------------------------
+    // Sentence set-up
+    // ------------------------------------------------------------------
+    function nextRandomSentence() {
+      if (sentencePool.length === 1) {
+        currentIndex = 0;
+      } else {
+        let nextIdx;
+        do {
+          nextIdx = Math.floor(Math.random() * sentencePool.length);
+        } while (nextIdx === currentIndex);
+        currentIndex = nextIdx;
+      }
+      setupSentence(sentencePool[currentIndex]);
+    }
+
+    function setupSentence(sentence) {
+      if (activeDrag) finalizeDrag(null);
+      step1Complete = false;
+      activeDrag = null;
+      targetWords = sentence.trim().split(/\s+/);
+
+      const bank = $("word-bank");
+      const slotsArea = $("slots-area");
+      const feedback = $("feedback-msg");
+      const typingSection = $("typing-section");
+      const typingInput = $("typing-input");
+      const typingFeedback = $("typing-feedback");
+      const hearBtn = $("hear-sentence-btn");
+
+      bank.innerHTML = "";
+      slotsArea.innerHTML = "";
+      feedback.className = "feedback-msg";
+      feedback.textContent = "";
+      typingSection.classList.remove("unlocked");
+      typingInput.value = "";
+      typingInput.classList.remove("done");
+      typingFeedback.className = "feedback-msg";
+      typingFeedback.textContent = "";
+      hearBtn.style.display = "none";
+
+      let scrambled = [...targetWords];
+      if (scrambled.length > 1) {
+        let attempts = 0;
+        while (scrambled.join(" ") === targetWords.join(" ") && attempts < 10) {
+          scrambled.sort(() => Math.random() - 0.5);
+          attempts++;
+        }
+      }
+
+      scrambled.forEach((word, idx) => bank.appendChild(createWordTile(word, idx)));
+
+      targetWords.forEach((_, idx) => {
+        const slot = document.createElement("div");
+        slot.className = "slot";
+        slot.dataset.slotIndex = idx;
+        slotsArea.appendChild(slot);
+      });
+    }
+
+    function createWordTile(word, id) {
+      const tile = document.createElement("div");
+      tile.className = "word-tile";
+      tile.textContent = word;
+      tile.dataset.word = word;
+      tile.dataset.tileId = id;
+      tile.tabIndex = 0;
+      tile.setAttribute("role", "button");
+
+      tile.addEventListener("touchstart", onStartDrag, { passive: false });
+      tile.addEventListener("mousedown", onStartDrag);
+      tile.addEventListener("keydown", onTileKey);
+
+      return tile;
+    }
+
+    // ------------------------------------------------------------------
+    // Moving tiles: drag, tap, or keyboard
+    // ------------------------------------------------------------------
+    function returnToBank(tile) {
+      tile.classList.remove("correct");
+      $("word-bank").appendChild(tile);
+    }
+
+    // Tap / Enter / Space: bank -> first empty line, line -> bank
+    function tapPlace(tile, currentParent) {
+      const bank = $("word-bank");
+      if (currentParent === bank) {
+        const emptySlot = Array.from(document.querySelectorAll(".slot")).find(
+          s => !s.querySelector(".word-tile")
+        );
+        if (emptySlot) {
+          emptySlot.appendChild(tile);
+        } else {
+          bank.appendChild(tile);
+        }
+      } else {
+        returnToBank(tile);
+      }
+    }
+
+    function onTileKey(e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      const tile = e.currentTarget;
+      if (tile.classList.contains("correct") && step1Complete) return;
+      speakText(tile.dataset.word);
+      tile.classList.remove("try-again");
+      tapPlace(tile, tile.parentNode);
+      tile.focus();
+    }
+
+    function getClientXY(e) {
+      if (e.touches && e.touches.length > 0) {
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+      if (e.changedTouches && e.changedTouches.length > 0) {
+        return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+      }
+      return { x: e.clientX, y: e.clientY };
+    }
+
+    function onStartDrag(e) {
+      const tile = e.currentTarget;
+      if (tile.classList.contains("correct") && step1Complete) return;
+      if (activeDrag) finalizeDrag(null);
+
+      e.preventDefault();
+      speakText(tile.dataset.word);
+      tile.classList.remove("try-again");
+
+      const { x, y } = getClientXY(e);
+      const rect = tile.getBoundingClientRect();
+
+      const placeholder = document.createElement("div");
+      placeholder.style.width = rect.width + "px";
+      placeholder.style.height = rect.height + "px";
+      placeholder.style.visibility = "hidden";
+      tile.parentNode.insertBefore(placeholder, tile);
+
+      tile.style.width = rect.width + "px";
+      tile.style.height = rect.height + "px";
+      tile.classList.add("dragging");
+      tile.style.left = rect.left + "px";
+      tile.style.top = rect.top + "px";
+
+      activeDrag = {
+        tile,
+        placeholder,
+        startX: x,
+        startY: y,
+        offsetX: x - rect.left,
+        offsetY: y - rect.top,
+        moved: false
+      };
+    }
+
+    function onMoveDrag(e) {
+      if (!activeDrag) return;
+      e.preventDefault();
+
+      const { x, y } = getClientXY(e);
+      const dx = Math.abs(x - activeDrag.startX);
+      const dy = Math.abs(y - activeDrag.startY);
+      if (dx > 6 || dy > 6) {
+        activeDrag.moved = true;
+      }
+
+      activeDrag.tile.style.left = (x - activeDrag.offsetX) + "px";
+      activeDrag.tile.style.top = (y - activeDrag.offsetY) + "px";
+
+      // Highlight nearest slot using the centre of the dragged tile
+      document.querySelectorAll(".slot").forEach(s => s.classList.remove("highlight"));
+      const tileRect = activeDrag.tile.getBoundingClientRect();
+      const hoveredSlot = getNearestSlot(
+        tileRect.left + tileRect.width / 2,
+        tileRect.top + tileRect.height / 2
+      );
+      if (hoveredSlot) hoveredSlot.classList.add("highlight");
+    }
+
+    function onEndDrag(e) {
+      if (!activeDrag) return;
+      e.preventDefault();
+      finalizeDrag(e);
+    }
+
+    function finalizeDrag(e) {
+      if (!activeDrag) return;
+      const { tile, placeholder, moved } = activeDrag;
+      activeDrag = null;
+
+      document.querySelectorAll(".slot").forEach(s => s.classList.remove("highlight"));
+
+      const tileRect = tile.getBoundingClientRect();
+      const centerX = tileRect.left + tileRect.width / 2;
+      const centerY = tileRect.top + tileRect.height / 2;
+
+      // Reset inline dragging styles BEFORE appending to container
+      tile.classList.remove("dragging");
+      tile.style.position = "";
+      tile.style.left = "";
+      tile.style.top = "";
+      tile.style.width = "";
+      tile.style.height = "";
+
+      const currentParent = placeholder.parentNode;
+
+      if (!moved) {
+        tapPlace(tile, currentParent);
+      } else {
+        // Find nearest slot based on tile centre (generous magnetic snap)
+        const targetSlot = getNearestSlot(centerX, centerY);
+        if (targetSlot) {
+          const existingTile = targetSlot.querySelector(".word-tile");
+          if (existingTile && existingTile !== tile) {
+            if (!existingTile.classList.contains("correct")) {
+              returnToBank(existingTile);
+              targetSlot.appendChild(tile);
+            } else {
+              returnToBank(tile);
+            }
+          } else {
+            targetSlot.appendChild(tile);
+          }
+        } else {
+          // Dropped outside the slots area -> snap back to the word bank
+          returnToBank(tile);
+        }
+      }
+
+      if (placeholder && placeholder.parentNode) {
+        placeholder.parentNode.removeChild(placeholder);
+      }
+    }
+
+    // Global listeners: releasing a finger anywhere on screen always snaps cleanly
+    window.addEventListener("touchmove", onMoveDrag, { passive: false });
+    window.addEventListener("mousemove", onMoveDrag);
+    window.addEventListener("touchend", onEndDrag, { passive: false });
+    window.addEventListener("touchcancel", onEndDrag, { passive: false });
+    window.addEventListener("mouseup", onEndDrag);
+
+    function getNearestSlot(centerX, centerY) {
+      const areaRect = $("slots-area").getBoundingClientRect();
+
+      // Generous check: anywhere inside or within 35px of the slots container
+      if (
+        centerX < areaRect.left - 35 ||
+        centerX > areaRect.right + 35 ||
+        centerY < areaRect.top - 35 ||
+        centerY > areaRect.bottom + 35
+      ) {
+        return null;
+      }
+
+      let closestSlot = null;
+      let minDistance = Infinity;
+
+      document.querySelectorAll(".slot").forEach(slot => {
+        const rect = slot.getBoundingClientRect();
+        const dist = Math.hypot(
+          centerX - (rect.left + rect.width / 2),
+          centerY - (rect.top + rect.height / 2)
+        );
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestSlot = slot;
+        }
+      });
+
+      return minDistance < 140 ? closestSlot : null;
+    }
+
+    // ------------------------------------------------------------------
+    // Checking
+    // ------------------------------------------------------------------
+    function checkWordOrder() {
+      const slots = document.querySelectorAll(".slot");
+      const bank = $("word-bank");
+      const feedback = $("feedback-msg");
+
+      let placedCount = 0;
+      let correctCount = 0;
+
+      slots.forEach((slot, idx) => {
+        const tile = slot.querySelector(".word-tile");
+        if (tile) {
+          placedCount++;
+          if (tile.dataset.word === targetWords[idx]) {
+            tile.classList.remove("try-again");
+            tile.classList.add("correct");
+            correctCount++;
+          } else {
+            tile.classList.remove("correct");
+            tile.classList.add("try-again");
+            setTimeout(() => {
+              bank.appendChild(tile);
+            }, 650);
+          }
+        }
+      });
+
+      if (placedCount < targetWords.length) {
+        feedback.textContent = "Fill all the lines first, then tap Check sentence!";
+        feedback.className = "feedback-msg info show";
+        return;
+      }
+
+      if (correctCount === targetWords.length) {
+        step1Complete = true;
+        feedback.textContent = "You built the sentence!";
+        feedback.className = "feedback-msg celebrate show";
+        $("hear-sentence-btn").style.display = "inline-flex";
+        launchBurst();
+        speakFullSentence();
+
+        $("typing-section").classList.add("unlocked");
+        setTimeout(() => {
+          $("typing-input").focus();
+        }, 400);
+      } else {
+        feedback.textContent = "Good try! Ticked words are in the right place. Try the yellow words again.";
+        feedback.className = "feedback-msg info show";
+      }
+    }
+
+    // iPads can swap straight quotes and apostrophes for curly ones; treat them as the same
+    function normaliseText(s) {
+      return s
+        .replace(/[\u2018\u2019\u02BC]/g, "'")
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function checkTypedSentence() {
+      const input = $("typing-input");
+      const feedback = $("typing-feedback");
+
+      const studentText = normaliseText(input.value);
+      const targetText = normaliseText(targetWords.join(" "));
+
+      if (!studentText) {
+        feedback.textContent = "Type the sentence in the box first.";
+        feedback.className = "feedback-msg info show";
+        return;
+      }
+
+      if (studentText === targetText) {
+        input.classList.add("done");
+        feedback.textContent = "Fantastic typing! Every word and punctuation mark matches!";
+        feedback.className = "feedback-msg celebrate show";
+        launchBurst();
+        speakText("Fantastic typing! " + targetWords.join(" "));
+      } else {
+        const strip = t => t.toLowerCase().replace(/[.,!?;:"']/g, "");
+        if (strip(studentText) === strip(targetText)) {
+          feedback.textContent = "Almost there! Check your capital letters and punctuation.";
+        } else {
+          feedback.textContent = "Keep going! Look closely at the ticked words above and check your spelling.";
+        }
+        feedback.className = "feedback-msg info show";
+      }
+    }
+
+    function launchBurst() {
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const colours = ["#059FAA", "#FBB525", "#08366C"];
+      for (let i = 0; i < 18; i++) {
+        const dot = document.createElement("div");
+        const size = 10 + Math.random() * 14;
+        dot.className = "dot-burst";
+        dot.style.width = size + "px";
+        dot.style.height = size + "px";
+        dot.style.background = colours[i % colours.length];
+        dot.style.left = (15 + Math.random() * 70) + "vw";
+        dot.style.top = (45 + Math.random() * 30) + "vh";
+        dot.style.animationDelay = (Math.random() * 0.25) + "s";
+        document.body.appendChild(dot);
+        setTimeout(() => dot.remove(), 1500);
+      }
+    }
+  </script>
+</body>
+</html>
