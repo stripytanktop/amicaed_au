@@ -7,26 +7,24 @@
   <meta name="theme-color" content="#08366C" />
   <link rel="icon" href="favicon.ico" sizes="any" />
   <style>
+    /* FONTS: replace the file names below with the ones in your fonts/ folder
+       (keep your own working @font-face block if you already have one). */
+    @font-face {
+      font-family: "Atkinson Hyperlegible";
+      src: url("/fonts/AtkinsonHyperlegible-Regular.woff2") format("woff2");
+      font-weight: 400; font-style: normal; font-display: swap;
+    }
+    @font-face {
+      font-family: "Atkinson Hyperlegible";
+      src: url("/fonts/AtkinsonHyperlegible-Bold.woff2") format("woff2");
+      font-weight: 700; font-style: normal; font-display: swap;
+    }
     /* ------------------------------------------------------------------
        AmicaEd visual grammar (taken from the logo)
        Navy  = structure: text, outlines, main actions, tiles you can move
        Teal  = right / progress: ticks, correct words, completed typing
        Gold  = attention: drop target, "try again", the full stop
        ------------------------------------------------------------------ */
-   @font-face {
-  font-family: "Atkinson Hyperlegible";
-  src: url("fonts/atkinson-regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Atkinson Hyperlegible";
-  src: url("fonts/atkinson-bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
     :root {
       --navy: #08366C;
       --navy-soft: #3E5878;
@@ -268,6 +266,17 @@
     .teacher-actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .teacher-status { margin-top: 12px; font-weight: 700; min-height: 1.5em; }
     .teacher-status.warn { color: var(--gold-deep); }
+
+    .voice-row { margin-top: 18px; padding-top: 16px; border-top: 2px solid var(--line); }
+    .voice-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+    select {
+      flex: 1; min-width: 220px; min-height: 48px;
+      font-family: inherit; font-size: 1.05rem; color: var(--navy);
+      background: var(--white); border: 2px solid var(--line); border-radius: 12px;
+      padding: 8px 12px;
+    }
+    select:focus { outline: 3px solid var(--navy); outline-offset: 2px; border-color: var(--navy); }
+    .voice-hint { margin-top: 8px; font-size: 0.95rem; color: var(--navy-soft); }
 
     .step-label {
       font-size: 1.1rem; font-weight: 700; color: var(--navy-soft);
@@ -540,6 +549,18 @@
           <button class="btn-secondary" id="close-teacher-btn" type="button">Close</button>
         </div>
         <div class="teacher-status" id="teacher-status" role="status" aria-live="polite"></div>
+
+        <div class="voice-row">
+          <label for="voice-select">Reading voice</label>
+          <div class="voice-controls">
+            <select id="voice-select"></select>
+            <button class="btn-secondary" id="voice-test-btn" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/></svg>
+              Hear it
+            </button>
+          </div>
+          <p class="voice-hint">Only voices installed on this device are listed. On an iPad, add more under Settings &rarr; Accessibility &rarr; Spoken Content &rarr; Voices.</p>
+        </div>
       </div>
 
       <!-- Step 1 -->
@@ -771,6 +792,9 @@
       $("use-custom-btn").addEventListener("click", saveCustomSentences);
       $("reset-btn").addEventListener("click", loadDefaultSentences);
       $("hear-sentence-btn").addEventListener("click", speakFullSentence);
+      $("voice-select").addEventListener("change", onVoiceChange);
+      $("voice-test-btn").addEventListener("click", () => speakText("The little brown dog ran fast.", true));
+      populateVoiceSelect();
       $("check-order-btn").addEventListener("click", checkWordOrder);
       $("check-typing-btn").addEventListener("click", checkTypedSentence);
       $("typing-input").addEventListener("keydown", e => {
@@ -902,13 +926,90 @@
       if (!audioEnabled && "speechSynthesis" in window) window.speechSynthesis.cancel();
     }
 
-    // Web pages can't read the iPad's Spoken Content voice setting. Instead we choose
-    // the best installed English voice: Australian first, then higher-quality
-    // (Premium / Enhanced) ones, skipping novelty voices.
+    // Web pages can't read the iPad's Spoken Content voice setting, so the app lets the
+    // teacher choose. "Automatic" picks the best installed English voice: Australian first,
+    // then Premium / Enhanced ones, skipping novelty voices.
+    const VOICE_KEY = "amicaed-sentence-builder-voice";
     let cachedVoices = [];
+    let chosenVoiceURI = "";
+
+    try { chosenVoiceURI = localStorage.getItem(VOICE_KEY) || ""; } catch (e) { chosenVoiceURI = ""; }
+
+    const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy/;
+
+    function voiceScore(v) {
+      const lang = v.lang.replace("_", "-").toLowerCase();
+      const name = v.name.toLowerCase();
+      let s = 0;
+      if (lang === "en-au") s += 100;
+      else if (lang === "en-nz" || lang === "en-gb") s += 40;
+      if (/premium/.test(name)) s += 30;
+      else if (/enhanced/.test(name)) s += 20;
+      if (/google|natural|neural|online/.test(name)) s += 15;
+      if (/compact/.test(name)) s -= 5;
+      if (NOVELTY.test(name)) s -= 100;
+      return s;
+    }
+
+    function englishVoices() {
+      return cachedVoices
+        .filter(v => v.lang && v.lang.replace("_", "-").toLowerCase().startsWith("en"))
+        .sort((a, b) => voiceScore(b) - voiceScore(a) || a.name.localeCompare(b.name));
+    }
+
     function loadVoices() {
       cachedVoices = ("speechSynthesis" in window) ? (window.speechSynthesis.getVoices() || []) : [];
+      populateVoiceSelect();
     }
+
+    function populateVoiceSelect() {
+      const sel = $("voice-select");
+      if (!sel) return;
+      const voices = englishVoices();
+      sel.innerHTML = "";
+      if (!("speechSynthesis" in window) || voices.length === 0) {
+        const o = document.createElement("option");
+        o.textContent = "No English voices found on this device";
+        sel.appendChild(o);
+        sel.disabled = true;
+        $("voice-test-btn").disabled = true;
+        return;
+      }
+      sel.disabled = false;
+      $("voice-test-btn").disabled = false;
+      const auto = document.createElement("option");
+      auto.value = "";
+      auto.textContent = "Automatic (best available)";
+      sel.appendChild(auto);
+      voices.forEach(v => {
+        const o = document.createElement("option");
+        o.value = v.voiceURI;
+        o.textContent = v.name + " (" + v.lang.replace("_", "-") + ")";
+        sel.appendChild(o);
+      });
+      // Keep the saved choice only if that voice still exists
+      sel.value = voices.some(v => v.voiceURI === chosenVoiceURI) ? chosenVoiceURI : "";
+    }
+
+    function pickVoice() {
+      if (!cachedVoices.length) loadVoices();
+      const voices = englishVoices();
+      if (chosenVoiceURI) {
+        const chosen = voices.find(v => v.voiceURI === chosenVoiceURI);
+        if (chosen) return chosen;
+      }
+      return voices[0] || null;
+    }
+
+    function onVoiceChange() {
+      chosenVoiceURI = $("voice-select").value;
+      try {
+        if (chosenVoiceURI) localStorage.setItem(VOICE_KEY, chosenVoiceURI);
+        else localStorage.removeItem(VOICE_KEY);
+      } catch (e) { /* storage unavailable: choice lasts for this visit only */ }
+      speakText("The little brown dog ran fast.", true);
+    }
+
     if ("speechSynthesis" in window) {
       loadVoices();
       if (window.speechSynthesis.addEventListener) {
@@ -916,29 +1017,8 @@
       }
     }
 
-    function pickVoice() {
-      if (!cachedVoices.length) loadVoices();
-      const english = cachedVoices.filter(v => v.lang && v.lang.replace("_", "-").toLowerCase().startsWith("en"));
-      if (!english.length) return null;
-      const novelty = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy/;
-      const score = v => {
-        const lang = v.lang.replace("_", "-").toLowerCase();
-        const name = v.name.toLowerCase();
-        let s = 0;
-        if (lang === "en-au") s += 100;
-        else if (lang === "en-nz" || lang === "en-gb") s += 40;
-        if (/premium/.test(name)) s += 30;
-        else if (/enhanced/.test(name)) s += 20;
-        if (/google|natural|neural|online/.test(name)) s += 15;
-        if (/compact/.test(name)) s -= 5;
-        if (novelty.test(name)) s -= 100;
-        return s;
-      };
-      return english.slice().sort((a, b) => score(b) - score(a))[0];
-    }
-
-    function speakText(text) {
-      if (!audioEnabled || !("speechSynthesis" in window)) return;
+    function speakText(text, force) {
+      if ((!audioEnabled && !force) || !("speechSynthesis" in window)) return;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.9;
