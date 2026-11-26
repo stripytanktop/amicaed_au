@@ -15,9 +15,9 @@
 .learn-resources{margin:14px 0 16px;padding:13px 14px;background:#fff;border:1px solid var(--line);border-radius:12px}.learn-resources h3{margin:0 0 9px}.resource-links{display:flex;flex-wrap:wrap;gap:9px}.resource-link{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border:1px solid #9fd9de;border-radius:10px;padding:9px 11px;background:#e3f3f5;color:#07356b;line-height:1.2}.resource-link:hover{background:#cdebee;border-color:#059faa}.resource-link.video{background:#fff1cc;border-color:#f3c75a;color:#6b5200}.resource-link.video:hover{background:#ffe8a0}.resource-link b{display:block;font-size:.82rem}.resource-link small{display:block;margin-top:2px;color:var(--muted);font-size:.68rem;font-weight:600}@media print{.learn-resources{display:none!important}}
 
 /* ===== AmicaEd Australia site theme (shared with the other AmicaEd pages; light only) ===== */
-@font-face{font-family:"Atkinson Hyperlegible";src:url("fonts/atkinson-regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:"Atkinson Hyperlegible";src:url("fonts/atkinson-bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
-@font-face{font-family:"Bricolage Grotesque";src:url("fonts/bricolage-grotesque.woff2") format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
+@font-face{font-family:"Atkinson Hyperlegible";src:url("../fonts/atkinson-regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Atkinson Hyperlegible";src:url("../fonts/atkinson-bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:"Bricolage Grotesque";src:url("../fonts/bricolage-grotesque.woff2") format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
 html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);scroll-padding-top:env(safe-area-inset-top,0px)}
 html[data-size="2"]{font-size:112.5%}html[data-size="3"]{font-size:125%}
 html[data-space="wide"] body{line-height:1.95;letter-spacing:.03em;word-spacing:.12em}
