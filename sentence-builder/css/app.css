@@ -417,7 +417,7 @@ nav.main a:hover { text-decoration: underline; text-underline-offset: .25em; }
 .rs-panel .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 .rs-panel .row > span { flex: 1 0 100%; font-weight: 700; }
 footer.site { border-top: 1px solid var(--line); padding: 2rem 0 2.5rem; margin-top: 2rem; }
-footer.site .row { display: flex; gap: 1rem 2rem; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+footer.site .row { display: flex; gap: 1rem 2rem; flex-wrap: wrap; align-items: baseline; justify-content: space-between; }
 footer.site .brand { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
 footer.site .logo-svg.foot { height: 1.8rem; width: 8.17rem; display: inline-block; vertical-align: baseline; transform: translateY(.257rem); }
 footer.site small { font-size: .95rem; color: var(--navy-soft); }
